@@ -1,0 +1,32 @@
+body {
+  background-color: #000000;
+  margin: 0;
+  padding: 0;
+}
+
+.page__content {
+  margin: 0 auto;
+  font-family: "Inter", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 20px;
+  color: white;
+  max-width: 1600px;
+  width: 100%;
+  display: block;
+  text-size-adjust: 100%;
+}
+@media screen and (min-width: 520px) and (max-width: 768px) {
+  .page__content {
+    background-color: black;
+    margin: 0;
+    padding: 0;
+    font-family: "Inter", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 20px;
+    color: white;
+    max-width: 728px;
+    width: 100%;
+    display: block;
+    text-size-adjust: 100%;
+  }
+}

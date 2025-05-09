@@ -1,0 +1,294 @@
+/* Popup.css */
+.popup {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  z-index: 99;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+.popup_open {
+  display: flex;
+}
+
+.popup-agregar {
+  display: flex;
+}
+
+.popup__content {
+  background-color: #fff;
+  color: #000000;
+  padding: 20px;
+  max-width: 816px;
+  max-height: 80vh;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  position: relative;
+  z-index: 1000;
+}
+
+.popup__close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  z-index: 10;
+  transition: opacity 0.3s ease;
+}
+
+/* Estilo del botón de cerrar */
+.popup__close-image {
+  position: absolute; /* Posiciona el botón dentro del contenedor relativo */
+  top: -50px; /* Ajusta este valor si necesitas más o menos margen */
+  right: -50px; /* Ajusta este valor si necesitas más o menos margen */
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  z-index: 10; /* Asegura que el botón esté por encima de todo */
+}
+
+.popup__close:hover,
+.close__feed:hover,
+.close__image:hover {
+  opacity: 60%;
+}
+
+.close__feed {
+  background-color: transparent;
+  border: none;
+  position: absolute;
+  top: -50px;
+  right: -50px;
+}
+
+.close__image {
+  position: absolute;
+  background-color: transparent;
+  border: none;
+  top: 41px;
+  right: 383px;
+  z-index: 1001;
+}
+
+.form__title,
+.feed__title {
+  color: #000000;
+  font-family: Inter;
+  font-size: 24px;
+  font-weight: 900;
+  margin-bottom: 54px;
+}
+.form__fieldset {
+  display: flex;
+  flex-direction: column;
+  border: none;
+  margin: auto;
+  justify-content: left;
+}
+.popup__input,
+.form__img-feed,
+.form__about-me {
+  border: none;
+  margin: 0;
+  padding: 5px;
+  border-bottom: 1px solid #c4c4c4;
+  width: 100%;
+  margin-bottom: 30px;
+  color: #000000;
+}
+
+.form__send,
+.form__update {
+  width: 358px;
+  height: 50px;
+  background-color: black;
+  color: white;
+  border: 1px solid #c4c4c4;
+}
+
+.form__send:hover,
+.form__update:hover {
+  opacity: 80%;
+}
+
+.form__send:disabled,
+.form__update:disabled {
+  cursor: not-allowed;
+  border-bottom: 1px solid red;
+  opacity: 0.5; /* Hace que se vea más apagado */
+}
+
+.feed__form {
+  display: flex;
+  flex-direction: column;
+  border: none;
+  margin: auto;
+  justify-content: left;
+}
+
+.popup__image,
+.popup__content-image {
+  max-width: 816px;
+  max-height: 80vh;
+  position: relative; /* Para que el botón se posicione respecto a este contenedor */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden; /* Evita que el botón o la imagen sobresalgan del contenedor */
+}
+
+.image__photo {
+  margin: 0 auto;
+  max-width: 816px;
+  max-height: 540px;
+}
+
+.image__caption {
+  max-width: 291px;
+  height: 12px;
+  font-family: Inter;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 14px;
+  text-align: left;
+}
+
+/* Estilizar para los mensajes de error */
+.popup__input_type_error {
+  color: red;
+  font-size: 12px; /* Ajuste para dar espacio entre el input y el mensaje */
+  width: 100%; /* Asegura que el mensaje ocupe el mismo ancho que el input */
+  text-align: left; /* Alinea el mensaje a la izquierda */
+}
+
+/* Estilo para el borde del campo en error */
+.input-error {
+  border-color: red;
+}
+
+/* Estilos para los popups de autenticación */
+.popup__content_auth {
+  max-width: 430px;
+  width: 100%;
+  max-height: 330px;
+  height: 100%;
+  background-color: #fff;
+  border-radius: 10px;
+  padding: 50px 36px 34px;
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.popup__icon {
+  width: 120px;
+  height: 120px;
+  margin-bottom: 32px;
+}
+
+.popup__message {
+  color: #000;
+  font-size: 24px;
+  font-weight: 900;
+  margin: 0;
+  text-align: center;
+  max-width: 358px;
+}
+
+/* Estilos para el botón de cerrar */
+.popup__close {
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 32px;
+  height: 32px;
+  background-image: url("../../images/close-icon.svg");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+}
+
+.popup__close-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.popup__close:hover {
+  opacity: 0.6;
+}
+
+@media screen and (max-width: 600px) {
+  .popup__content_auth {
+    max-width: 280px;
+    padding: 40px 22px 25px;
+  }
+
+  .popup__close {
+    top: 15px;
+    right: 15px;
+    width: 24px;
+    height: 24px;
+  }
+
+  .popup__message {
+    font-size: 20px;
+  }
+
+  .popup__content {
+    width: 90%;
+  }
+  .popup__input {
+    width: 238px;
+  }
+  .form__about-me {
+    width: 238px;
+  }
+  .form__send {
+    width: 238px;
+  }
+
+  .form__update {
+    width: 238px;
+  }
+
+  .close__feed {
+    bottom: 280px;
+    left: 280px;
+    position: absolute;
+    top: -50px;
+    left: 200px;
+  }
+
+  .image__photo {
+    max-width: 238px;
+    max-height: 299px;
+  }
+  .close__image {
+    bottom: 280px;
+    left: 280px;
+    position: absolute;
+    top: -50px;
+    left: 240px;
+  }
+}
