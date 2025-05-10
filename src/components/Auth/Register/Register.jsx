@@ -15,6 +15,11 @@ export default function Register({ onRegister }) {
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showErrorPopup, setShowErrorPopup] = useState(false);
 
+  const closePopup = () => {
+    setShowSuccessPopup(false);
+    setShowErrorPopup(false);
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -29,16 +34,12 @@ export default function Register({ onRegister }) {
 
     try {
       await onRegister(formData.email, formData.password);
-      setShowSuccessPopup(true); // Mostrar popup de éxito
+      setShowSuccessPopup(true);
+      setFormData({ email: "", password: "" });
     } catch (err) {
-      setError(err.message || "Ocurrió un error. Inténtalo de nuevo.");
-      setShowErrorPopup(true); // Mostrar popup de error
+      setError(err.message);
+      setShowErrorPopup(true);
     }
-  };
-
-  const closePopup = () => {
-    setShowSuccessPopup(false);
-    setShowErrorPopup(false);
   };
 
   return (

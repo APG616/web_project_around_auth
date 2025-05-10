@@ -25,8 +25,9 @@ export default function Login({ onLogin }) {
 
     try {
       await onLogin(formData.email, formData.password);
+      setFormData({ email: "", password: "" });
     } catch (err) {
-      setError(err.message || "Ocurrió un error. Inténtalo de nuevo.");
+      setError(err.message || "Error al iniciar sesión");
     }
   };
 

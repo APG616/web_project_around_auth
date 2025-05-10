@@ -1,7 +1,7 @@
 // App.jsx
 import "../../pages/index.css";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import api from "../utils/api";
 import * as auth from "../utils/auth";
@@ -24,6 +24,8 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [email, setEmail] = useState("");
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [isInfoTooltipOpen, setIsInfoTooltipOpen] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -36,6 +38,84 @@ export default function App() {
     title: "",
     children: null,
   });
+
+  const loadData = useCallback(async () => {
+    try {
+      const [userInfo, cardsData] = await Promise.all([
+        api.getUserInfo().catch(() => ({})), // Fallback para info de usuario
+        api.getCardList(), // Ya incluye su propio fallback
+      ]);
+
+      setCurrentUser(userInfo);
+      setCards(cardsData);
+    } catch (error) {
+      console.error("Error cargando datos:", error);
+      if (error.message.includes("401")) {
+        handleLogout();
+      }
+    }
+  }, []);
+
+  const loadUserData = useCallback(async () => {
+    try {
+      const [userInfo, cardsData] = await Promise.all([
+        api.getUserInfo(),
+        api.getCardList(),
+      ]);
+      setCurrentUser(userInfo);
+      setCards(cardsData);
+    } catch (error) {
+      console.error("Error loading data:", error);
+      if (error.message.includes("401")) {
+        handleLogout();
+      }
+    }
+  }, []);
+
+  const checkAuth = useCallback(async () => {
+    const token = localStorage.getItem("jwt");
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const tokenData = await auth.checkToken(token);
+      if (!tokenData?.data) throw new Error("Token inválido");
+
+      const [userInfo, cardsData] = await Promise.all([
+        api.getUserInfo().catch((e) => {
+          console.error("Error obteniendo info usuario:", e);
+          return {};
+        }),
+        api.getCardList().catch((e) => {
+          console.error("Error obteniendo tarjetas:", e);
+          return [];
+        }),
+      ]);
+
+      setEmail(tokenData.data.email);
+      setCurrentUser(userInfo);
+      setCards(cardsData);
+      setIsLoggedIn(true);
+      navigate("/");
+    } catch (err) {
+      console.error("Error de autenticación:", err);
+      handleLogout();
+    } finally {
+      setLoading(false);
+    }
+  }, [navigate]);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      loadUserData();
+    }
+  }, [isLoggedIn, loadUserData]);
 
   useEffect(() => {
     api
@@ -88,6 +168,33 @@ export default function App() {
     authenticate();
   }, [navigate]);
 
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const fetchData = async () => {
+      try {
+        const [userInfo, cardsData] = await Promise.all([
+          api.getUserInfo(),
+          api.getCardList(),
+        ]);
+        setCurrentUser(userInfo);
+        setCards(cardsData);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        // Manejo específico de error 404
+        if (error.message.includes("404")) {
+          console.error("Endpoint no encontrado, verificando URL base");
+        }
+        // Si es error de autenticación, hacer logout
+        if (error.message.includes("401")) {
+          handleLogout();
+        }
+      }
+    };
+
+    fetchData();
+  }, [isLoggedIn]);
+
   function handleOpenPopup(type, title, children) {
     setPopup({
       isOpen: true,
@@ -104,6 +211,43 @@ export default function App() {
       title: "",
       children: null,
     });
+  };
+
+  const handleCardLike = async (card, isLiked) => {
+    try {
+      const updatedCard = await api.changeLikeCardStatus(card._id, isLiked);
+      setCards((prev) =>
+        prev.map((c) =>
+          c._id === card._id
+            ? { ...c, isLiked: !c.isLiked, likes: updatedCard.likes }
+            : c
+        )
+      );
+    } catch (error) {
+      console.error("Error actualizando like:", error);
+    }
+  };
+
+  const handleCardDelete = async (card) => {
+    try {
+      await api.deleteCard(card._id);
+      setCards((prev) => prev.filter((c) => c._id !== card._id));
+    } catch (error) {
+      console.error("Error eliminando tarjeta:", error);
+    }
+  };
+
+  const handleAddPlaceSubmit = (data) => {
+    return api
+      .addCard(data)
+      .then((newCard) => {
+        setCards([newCard, ...cards]);
+        handleClosePopup();
+      })
+      .catch((error) => {
+        console.error("Error añadiendo tarjeta:", error);
+        throw error; // Propaga el error para manejarlo en NewCard
+      });
   };
 
   const handleUpdateAvatar = (data) => {
@@ -134,56 +278,21 @@ export default function App() {
       });
   };
 
-  const handleAddPlaceSubmit = (data) => {
-    api
-      .addCard(data)
-      .then((newCard) => {
-        setCards([newCard, ...cards]);
-        handleClosePopup();
-      })
-      .catch((error) => console.error(error));
-  };
-
-  const handleCardLike = async (card, isLiked) => {
-    try {
-      const updatedCard = await api.changeLikeCardStatus(card._id, isLiked);
-      setCards((prev) =>
-        prev.map((c) =>
-          c._id === card._id
-            ? { ...c, isLiked: !c.isLiked, likes: updatedCard.likes }
-            : c
-        )
-      );
-    } catch (error) {
-      console.error("Error updating like:", error);
-    }
-  };
-
-  const handleCardDelete = async (card) => {
-    try {
-      await api.deleteCard(card._id);
-      setCards((prev) => prev.filter((c) => c._id !== card._id));
-    } catch (error) {
-      console.error("Error deleting card:", error);
-    }
-  };
-
   const handleLogin = async (email, password) => {
     try {
+      setError(null);
       const data = await auth.login(email, password);
 
-      if (!data?.token) {
-        throw new Error("No token received");
-      }
+      if (!data?.token) throw new Error("No se recibió token");
 
       localStorage.setItem("jwt", data.token);
-      setEmail(email);
-      setIsLoggedIn(true);
-
-      return data;
+      await checkAuth(); // Re-verificar autenticación con el nuevo token
     } catch (err) {
-      console.error("Login error:", err);
-      throw err; // Propaga el error para que Login.jsx lo maneje
+      console.error("Error en login:", err);
+      setError(err.message || "Error al iniciar sesión");
+      setIsInfoTooltipOpen(true);
+      setIsSuccess(false);
+      throw err;
     }
   };
 
@@ -196,19 +305,25 @@ export default function App() {
 
   const handleRegister = async (email, password) => {
     try {
-      const data = await auth.register(email, password);
+      const registerData = await auth.register(email, password);
 
-      // Auto-login después del registro exitoso
-      if (data) {
-        return handleLogin(email, password);
+      // Auto-login después de registro exitoso
+      if (registerData) {
+        await handleLogin(email, password);
+        setIsInfoTooltipOpen(true);
+        setIsSuccess(true);
       }
-
-      return data;
     } catch (err) {
-      console.error("Registration error:", err);
+      console.error("Error en registro:", err);
+      setIsInfoTooltipOpen(true);
+      setIsSuccess(false);
       throw err;
     }
   };
+
+  if (loading) {
+    return <div className="loading">Cargando...</div>;
+  }
 
   return (
     <CurrentUserContext.Provider value={{ currentUser, setCurrentUser }}>
