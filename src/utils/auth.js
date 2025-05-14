@@ -1,6 +1,31 @@
 // auth.js
 const BASE_URL = "https://se-register-api.en.tripleten-services.com/v1";
 
+const handleAuthResponse = (res) => {
+  if (!res.ok) {
+    return res
+      .json()
+      .then((err) => {
+        let errorMessage = "Error en la solicitud";
+
+        if (res.status === 400) errorMessage = "Datos incorrectos o faltantes";
+        if (res.status === 401) errorMessage = "No autorizado";
+        if (res.status === 404) errorMessage = "Recurso no encontrado";
+        if (res.status === 500) errorMessage = "Error del servidor";
+
+        const error = new Error(err.message || errorMessage);
+        error.status = res.status;
+        throw error;
+      })
+      .catch(() => {
+        throw new Error(
+          `Error ${res.status}: No se pudo procesar la respuesta`
+        );
+      });
+  }
+  return res.json();
+};
+
 const validateToken = (token) => {
   if (!token || typeof token !== "string" || !token.startsWith("eyJ")) {
     throw new Error("Token inválido o mal formado");
@@ -34,7 +59,14 @@ export const login = (email, password) => {
       Accept: "application/json",
     },
     body: JSON.stringify({ email, password }),
-  }).then(handleAuthResponse);
+  })
+    .then(handleAuthResponse)
+    .catch((error) => {
+      if (error.message.includes("Failed to fetch")) {
+        throw new Error("Error de conexión con el servidor");
+      }
+      throw error;
+    });
 };
 
 export const checkToken = (token) => {
@@ -52,19 +84,4 @@ export const checkToken = (token) => {
   } catch (err) {
     return Promise.reject(err);
   }
-};
-
-const handleAuthResponse = (res) => {
-  if (!res.ok) {
-    return res.json().then((err) => {
-      let errorMessage = "Error en la solicitud";
-
-      if (res.status === 400) errorMessage = "Datos incorrectos o faltantes";
-      if (res.status === 401) errorMessage = "No autorizado";
-      if (res.status === 404) errorMessage = "Recurso no encontrado";
-
-      throw new Error(err.message || errorMessage);
-    });
-  }
-  return res.json();
 };

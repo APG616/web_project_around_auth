@@ -4,6 +4,7 @@ const BASE_URL = "https://se-register-api.en.tripleten-services.com/v1";
 class Api {
   constructor({ baseUrl }) {
     this._baseUrl = baseUrl;
+    console.log("API Base URL:", this._baseUrl); // Verifica la URL
     this._validateToken();
   }
 
@@ -17,6 +18,7 @@ class Api {
 
   _getHeaders() {
     const token = localStorage.getItem("jwt");
+    console.log("Using token:", token);
     if (token) this._validateToken();
 
     return {
@@ -28,30 +30,54 @@ class Api {
 
   _handleResponse(res) {
     if (!res.ok) {
-      return res.json().then((err) => {
-        const statusMessages = {
-          400: "Solicitud incorrecta",
-          401: "No autorizado - token inválido",
-          404: "Endpoint no encontrado",
-          500: "Error del servidor",
-        };
+      return res
+        .json()
+        .then((err) => {
+          const statusMessages = {
+            400: "Solicitud incorrecta",
+            401: "No autorizado - token inválido",
+            404: "Endpoint no encontrado",
+            500: "Error del servidor",
+          };
 
-        throw new Error(
-          err.message || statusMessages[res.status] || `Error ${res.status}`
-        );
-      });
+          const error = new Error(
+            err.message || statusMessages[res.status] || `Error ${res.status}`
+          );
+          error.status = res.status;
+          throw error;
+        })
+        .catch(() => {
+          throw new Error(
+            `Error ${res.status}: No se pudo parsear la respuesta`
+          );
+        });
     }
     return res.json();
   }
 
   // User methods
-  getUserInfo() {
-    return fetch(`${this._baseUrl}/users/me`, {
-      headers: this._getHeaders(),
-    }).then(this._handleResponse);
+  async getUserInfo() {
+    try {
+      const response = await fetch(`${this._baseUrl}/users/me`, {
+        method: "OPTIONS",
+        headers: this._getHeaders(),
+        credentials: "include", // Añade esto para manejar cookies
+      });
+
+      console.log("OPTIONS response headers:", [...response.headers.entries()]);
+
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error fetching user info:", error);
+      throw error;
+    }
   }
 
-  setUserInfo(data) {
+  async setUserInfo(data) {
     return fetch(`${this._baseUrl}/users/me`, {
       method: "PATCH",
       headers: this._getHeaders(),
@@ -59,7 +85,7 @@ class Api {
     }).then(this._handleResponse);
   }
 
-  setUserAvatar(avatar) {
+  async setUserAvatar(avatar) {
     return fetch(`${this._baseUrl}/users/me/avatar`, {
       method: "PATCH",
       headers: this._getHeaders(),
@@ -68,19 +94,23 @@ class Api {
   }
 
   // Card methods - Versión simplificada sin alternativas
-  getCardList() {
-    return fetch(`${this._baseUrl}/cards`, {
-      method: "GET",
-      headers: this._getHeaders(),
-    })
-      .then(this._handleResponse)
-      .catch((error) => {
-        console.error("Error al obtener tarjetas:", error.message);
-        return []; // Retorna array vacío como fallback
+  async getCardList() {
+    try {
+      const response = await fetch(`${this._baseUrl}/cards`, {
+        method: "OPTIONS",
+        headers: this._getHeaders(),
       });
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error("Error al obtener la lista de tarjetas:", error.message);
+      return [];
+    }
   }
 
-  addCard(data) {
+  async addCard(data) {
     return fetch(`${this._baseUrl}/cards`, {
       method: "POST",
       headers: this._getHeaders(),
@@ -88,14 +118,14 @@ class Api {
     }).then(this._handleResponse);
   }
 
-  deleteCard(cardId) {
+  async deleteCard(cardId) {
     return fetch(`${this._baseUrl}/cards/${cardId}`, {
       method: "DELETE",
       headers: this._getHeaders(),
     }).then(this._handleResponse);
   }
 
-  changeLikeCardStatus(cardId, isLiked) {
+  async changeLikeCardStatus(cardId, isLiked) {
     return fetch(`${this._baseUrl}/cards/${cardId}/likes`, {
       method: isLiked ? "PUT" : "DELETE",
       headers: this._getHeaders(),

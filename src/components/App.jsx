@@ -1,7 +1,7 @@
 // App.jsx
 import "../../pages/index.css";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import api from "../utils/api";
 import * as auth from "../utils/auth";
@@ -24,7 +24,6 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [email, setEmail] = useState("");
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const [isInfoTooltipOpen, setIsInfoTooltipOpen] = useState(false);
@@ -39,119 +38,40 @@ export default function App() {
     children: null,
   });
 
-  const loadData = useCallback(async () => {
-    try {
-      const [userInfo, cardsData] = await Promise.all([
-        api.getUserInfo().catch(() => ({})), // Fallback para info de usuario
-        api.getCardList(), // Ya incluye su propio fallback
-      ]);
-
-      setCurrentUser(userInfo);
-      setCards(cardsData);
-    } catch (error) {
-      console.error("Error cargando datos:", error);
-      if (error.message.includes("401")) {
-        handleLogout();
+  useEffect(() => {
+    // Manejo de errores global
+    const handleUnhandledRejection = (event) => {
+      console.error("Unhandled rejection:", event.reason);
+      if (event.reason.message.includes("Failed to fetch")) {
+        setError("Error de conexión con el servidor");
+        setIsInfoTooltipOpen(true);
+        setIsSuccess(false);
       }
-    }
+    };
+
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
+
+    return () => {
+      window.removeEventListener(
+        "unhandledrejection",
+        handleUnhandledRejection
+      );
+    };
   }, []);
 
-  const loadUserData = useCallback(async () => {
-    try {
-      const [userInfo, cardsData] = await Promise.all([
-        api.getUserInfo(),
-        api.getCardList(),
-      ]);
-      setCurrentUser(userInfo);
-      setCards(cardsData);
-    } catch (error) {
-      console.error("Error loading data:", error);
-      if (error.message.includes("401")) {
-        handleLogout();
-      }
-    }
-  }, []);
-
-  const checkAuth = useCallback(async () => {
-    const token = localStorage.getItem("jwt");
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const tokenData = await auth.checkToken(token);
-      if (!tokenData?.data) throw new Error("Token inválido");
-
-      const [userInfo, cardsData] = await Promise.all([
-        api.getUserInfo().catch((e) => {
-          console.error("Error obteniendo info usuario:", e);
-          return {};
-        }),
-        api.getCardList().catch((e) => {
-          console.error("Error obteniendo tarjetas:", e);
-          return [];
-        }),
-      ]);
-
-      setEmail(tokenData.data.email);
-      setCurrentUser(userInfo);
-      setCards(cardsData);
-      setIsLoggedIn(true);
-      navigate("/");
-    } catch (err) {
-      console.error("Error de autenticación:", err);
-      handleLogout();
-    } finally {
-      setLoading(false);
-    }
-  }, [navigate]);
-
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
-
-  useEffect(() => {
-    if (isLoggedIn) {
-      loadUserData();
-    }
-  }, [isLoggedIn, loadUserData]);
-
-  useEffect(() => {
-    api
-      .getUserInfo()
-      .then(setCurrentUser)
-      .catch((error) => {
-        console.error("Error fetching user info:", error);
-        // Opcional: manejar el error (ej. redirigir a login)
-      });
-
-    api
-      .getCardList()
-      .then(setCards)
-      .catch((error) => {
-        console.error("Error fetching cards:", error);
-        setCards([]); // Establece un array vacío como fallback
-      });
-  }, [currentUser._id]);
-
+  // Efecto para verificar autenticación y cargar datos al montar
   useEffect(() => {
     const token = localStorage.getItem("jwt");
     if (!token) return;
 
-    const authenticate = async () => {
+    const checkAuthAndLoadData = async () => {
       try {
-        // 1. Primero verifica el token
         const tokenData = await auth.checkToken(token);
+        if (!tokenData?.data) throw new Error("Token inválido");
 
-        if (!tokenData.data) {
-          throw new Error("Token inválido");
-        }
-
-        // 2. Si el token es válido, obtén los datos del usuario
         const [userInfo, cardsData] = await Promise.all([
-          api.getUserInfo().catch(() => ({})),
-          api.getCardList().catch(() => []),
+          api.getUserInfo(),
+          api.getCardList(),
         ]);
 
         setEmail(tokenData.data.email);
@@ -159,15 +79,16 @@ export default function App() {
         setCards(cardsData);
         setIsLoggedIn(true);
         navigate("/");
-      } catch (err) {
-        console.error("Error de autenticación:", err);
-        handleLogout(); // Limpia el token inválido
+      } catch (error) {
+        console.error("Error de autenticación:", error);
+        handleLogout();
       }
     };
 
-    authenticate();
+    checkAuthAndLoadData();
   }, [navigate]);
 
+  // Efecto para recargar datos cuando cambia el estado de autenticación
   useEffect(() => {
     if (!isLoggedIn) return;
 
@@ -181,11 +102,6 @@ export default function App() {
         setCards(cardsData);
       } catch (error) {
         console.error("Error fetching data:", error);
-        // Manejo específico de error 404
-        if (error.message.includes("404")) {
-          console.error("Endpoint no encontrado, verificando URL base");
-        }
-        // Si es error de autenticación, hacer logout
         if (error.message.includes("401")) {
           handleLogout();
         }
@@ -246,7 +162,7 @@ export default function App() {
       })
       .catch((error) => {
         console.error("Error añadiendo tarjeta:", error);
-        throw error; // Propaga el error para manejarlo en NewCard
+        throw error;
       });
   };
 
@@ -256,7 +172,7 @@ export default function App() {
       .then((newData) => {
         setCurrentUser(newData);
         handleClosePopup();
-        return newData; // Para poder encadenar then() en EditAvatar
+        return newData;
       })
       .catch((error) => {
         console.error("Error updating avatar:", error);
@@ -286,10 +202,26 @@ export default function App() {
       if (!data?.token) throw new Error("No se recibió token");
 
       localStorage.setItem("jwt", data.token);
-      await checkAuth(); // Re-verificar autenticación con el nuevo token
+
+      // Cargar datos después de login exitoso
+      const tokenData = await auth.checkToken(data.token);
+      const [userInfo, cardsData] = await Promise.all([
+        api.getUserInfo(),
+        api.getCardList(),
+      ]);
+
+      setEmail(tokenData.data.email);
+      setCurrentUser(userInfo);
+      setCards(cardsData);
+      setIsLoggedIn(true);
+      navigate("/");
     } catch (err) {
       console.error("Error en login:", err);
-      setError(err.message || "Error al iniciar sesión");
+      const errorMessage = err.message.includes("Failed to fetch")
+        ? "Error de conexión con el servidor"
+        : err.message || "Error al iniciar sesión";
+
+      setError(errorMessage);
       setIsInfoTooltipOpen(true);
       setIsSuccess(false);
       throw err;
@@ -307,7 +239,6 @@ export default function App() {
     try {
       const registerData = await auth.register(email, password);
 
-      // Auto-login después de registro exitoso
       if (registerData) {
         await handleLogin(email, password);
         setIsInfoTooltipOpen(true);
@@ -320,10 +251,6 @@ export default function App() {
       throw err;
     }
   };
-
-  if (loading) {
-    return <div className="loading">Cargando...</div>;
-  }
 
   return (
     <CurrentUserContext.Provider value={{ currentUser, setCurrentUser }}>
@@ -361,6 +288,7 @@ export default function App() {
           />
         </Routes>
         <Footer />
+
         {popup.type === "add-card" && (
           <Popup
             isOpen={popup.isOpen}
@@ -371,7 +299,6 @@ export default function App() {
           </Popup>
         )}
 
-        {/* Popup para editar avatar */}
         {popup.type === "edit-avatar" && (
           <Popup
             isOpen={popup.isOpen}
@@ -382,7 +309,6 @@ export default function App() {
           </Popup>
         )}
 
-        {/* Popup para editar perfil */}
         {popup.type === "edit-profile" && (
           <Popup
             isOpen={popup.isOpen}
@@ -395,6 +321,7 @@ export default function App() {
             />
           </Popup>
         )}
+
         <InfoTooltip
           isOpen={isInfoTooltipOpen}
           onClose={closeInfoTooltip}
