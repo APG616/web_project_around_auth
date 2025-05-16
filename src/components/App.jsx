@@ -67,17 +67,20 @@ export default function App() {
     const checkAuthAndLoadData = async () => {
       try {
         const tokenData = await auth.checkToken(token);
-        if (!tokenData?.data) throw new Error("Token inválido");
+        if (!tokenData?.data?.email) {
+          throw new Error("Token inválido");
+        }
+
+        setEmail(tokenData.data.email);
+        setIsLoggedIn(true);
 
         const [userInfo, cardsData] = await Promise.all([
           api.getUserInfo(),
           api.getCardList(),
         ]);
 
-        setEmail(tokenData.data.email);
         setCurrentUser(userInfo);
         setCards(cardsData);
-        setIsLoggedIn(true);
         navigate("/");
       } catch (error) {
         console.error("Error de autenticación:", error);
@@ -153,20 +156,18 @@ export default function App() {
     }
   };
 
-  const handleAddPlaceSubmit = (data) => {
-    return api
-      .addCard(data)
-      .then((newCard) => {
-        setCards([newCard, ...cards]);
-        handleClosePopup();
-      })
-      .catch((error) => {
-        console.error("Error añadiendo tarjeta:", error);
-        throw error;
-      });
+  const handleAddPlaceSubmit = async (data) => {
+    try {
+      const newCard = await api.addCard(data);
+      setCards([newCard, ...cards]);
+      handleClosePopup();
+    } catch (error) {
+      console.error("Error añadiendo tarjeta:", error);
+      throw error;
+    }
   };
 
-  const handleUpdateAvatar = (data) => {
+  const handleUpdateAvatar = async (data) => {
     return api
       .setUserAvatar(data)
       .then((newData) => {
@@ -180,7 +181,7 @@ export default function App() {
       });
   };
 
-  const handleUpdateUser = (data) => {
+  const handleUpdateUser = async (data) => {
     return api
       .setUserInfo(data)
       .then((newData) => {

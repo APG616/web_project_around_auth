@@ -1,4 +1,3 @@
-// auth.js
 const BASE_URL = "https://se-register-api.en.tripleten-services.com/v1";
 
 const handleAuthResponse = (res) => {
@@ -13,23 +12,31 @@ const handleAuthResponse = (res) => {
         if (res.status === 404) errorMessage = "Recurso no encontrado";
         if (res.status === 500) errorMessage = "Error del servidor";
 
-        const error = new Error(err.message || errorMessage);
-        error.status = res.status;
+        const error = new Error(err.message || `Error ${res.status}`, {
+          url: res.url,
+          status: res.status,
+          error: err,
+        });
         throw error;
       })
       .catch(() => {
-        throw new Error(
+        const error = new Error(
           `Error ${res.status}: No se pudo procesar la respuesta`
         );
+        error.status = res.status;
+        throw error;
       });
   }
   return res.json();
 };
 
 const validateToken = (token) => {
-  if (!token || typeof token !== "string" || !token.startsWith("eyJ")) {
-    throw new Error("Token inválido o mal formado");
-  }
+  if (!token) throw new Error("Token NO PROPORCIONADO");
+  if (typeof token !== "string") throw new Error("Token NO ES UN STRING");
+  if (!token.startsWith("eyJ")) throw new Error("Token NO ES UN JWT");
+
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new Error("Estructura de token inválida");
 };
 
 export const register = (email, password) => {

@@ -7,16 +7,16 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
-      '/api': {
-        target: 'https://se-register-api.en.tripleten-services.com',
+      "/api": {
+        target: "https://se-register-api.en.tripleten-services.com",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '/v1')
-      }
-  
-  },
-  resolve: {
-    alias: {
-      "@images": path.resolve(__dirname, "images"),
+        rewrite: (path) => path.replace(/^\/api/, "/v1"),
+      },
+    },
+    resolve: {
+      alias: {
+        "@images": path.resolve(__dirname, "images"),
+      },
     },
   },
 });

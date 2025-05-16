@@ -1,5 +1,5 @@
 // api.js
-const BASE_URL = "https://se-register-api.en.tripleten-services.com/v1";
+const BASE_URL = "https://around-api.en.tripleten-services.com/v1";
 
 class Api {
   constructor({ baseUrl }) {
@@ -25,6 +25,8 @@ class Api {
       "Content-Type": "application/json",
       Accept: "application/json",
       ...(token && { Authorization: `Bearer ${token}` }),
+      Origin: window.location.origin, // Añade el origen
+      "Access-Control-Allow-Origin": "GET, POST, PUT, PATCH, DELETE",
     };
   }
 
@@ -59,7 +61,7 @@ class Api {
   async getUserInfo() {
     try {
       const response = await fetch(`${this._baseUrl}/users/me`, {
-        method: "OPTIONS",
+        method: "GET",
         headers: this._getHeaders(),
         credentials: "include", // Añade esto para manejar cookies
       });
@@ -97,7 +99,7 @@ class Api {
   async getCardList() {
     try {
       const response = await fetch(`${this._baseUrl}/cards`, {
-        method: "OPTIONS",
+        method: "GET",
         headers: this._getHeaders(),
       });
       if (!response.ok) {
