@@ -1,15 +1,14 @@
 //Login.jsx
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import "../../../../pages/index.css";
 
-export default function Login({ onLogin }) {
+export default function Login({ onLogin, apiError }) {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
-  const [error, setError] = useState("");
-  const navigate = useNavigate();
+  const [localError, setLocalError] = useState("");
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -19,22 +18,18 @@ export default function Login({ onLogin }) {
     }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setError("");
-
-    try {
-      await onLogin(formData.email, formData.password);
-      setFormData({ email: "", password: "" });
-    } catch (err) {
-      setError(err.message || "Error al iniciar sesión");
-    }
+    setLocalError("");
+    onLogin(formData.email, formData.password);
   };
 
   return (
     <div className="auth">
       <h2 className="auth__title">Iniciar sesión</h2>
-      {error && <p className="auth__error">{error}</p>}
+      {(apiError || localError) && (
+        <p className="auth__error">{apiError || localError}</p>
+      )}
       <form className="auth__form" onSubmit={handleSubmit}>
         <input
           className="auth__input"
@@ -61,8 +56,8 @@ export default function Login({ onLogin }) {
         </button>
       </form>
       <p className="auth__link">
-        ¿Aún no eres miembro?
-        <Link className="auth__link-text" to="/signup">
+        ¿Aún no eres miembro?{" "}
+        <Link to="/signup" className="auth__link-text">
           Regístrate aquí
         </Link>
       </p>

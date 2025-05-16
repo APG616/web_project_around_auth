@@ -62,33 +62,37 @@ export default function App() {
   // Efecto para verificar autenticación y cargar datos al montar
   useEffect(() => {
     const token = localStorage.getItem("jwt");
-    if (!token) return;
 
-    const checkAuthAndLoadData = async () => {
+    if (!token) {
+      navigate("/signin");
+      return;
+    }
+
+    const loadInitialData = async () => {
       try {
         const tokenData = await auth.checkToken(token);
+
         if (!tokenData?.data?.email) {
           throw new Error("Token inválido");
         }
-
-        setEmail(tokenData.data.email);
-        setIsLoggedIn(true);
 
         const [userInfo, cardsData] = await Promise.all([
           api.getUserInfo(),
           api.getCardList(),
         ]);
 
+        setEmail(tokenData.data.email);
         setCurrentUser(userInfo);
         setCards(cardsData);
+        setIsLoggedIn(true);
         navigate("/");
       } catch (error) {
-        console.error("Error de autenticación:", error);
+        console.error("Error al cargar datos iniciales:", error);
         handleLogout();
       }
     };
 
-    checkAuthAndLoadData();
+    loadInitialData();
   }, [navigate]);
 
   // Efecto para recargar datos cuando cambia el estado de autenticación
@@ -238,18 +242,16 @@ export default function App() {
 
   const handleRegister = async (email, password) => {
     try {
+      setError(null);
       const registerData = await auth.register(email, password);
 
       if (registerData) {
-        await handleLogin(email, password);
-        setIsInfoTooltipOpen(true);
-        setIsSuccess(true);
+        // No manejamos el InfoTooltip aquí, lo hace el componente Register
+        return registerData; // Devuelve los datos para que Register maneje el popup
       }
     } catch (err) {
       console.error("Error en registro:", err);
-      setIsInfoTooltipOpen(true);
-      setIsSuccess(false);
-      throw err;
+      throw err; // Lanza el error para que Register lo maneje
     }
   };
 
@@ -261,6 +263,7 @@ export default function App() {
           userEmail={email}
           onLogout={handleLogout}
         />
+
         <Routes>
           <Route
             path="/"
@@ -278,14 +281,34 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/signin" element={<Login onLogin={handleLogin} />} />
+
+          {/* Rutas de autenticación */}
+          <Route
+            path="/signin"
+            element={
+              isLoggedIn ? (
+                <Navigate to="/" replace />
+              ) : (
+                <Login onLogin={handleLogin} apiError={error} />
+              )
+            }
+          />
+
           <Route
             path="/signup"
-            element={<Register onRegister={handleRegister} />}
+            element={
+              isLoggedIn ? (
+                <Navigate to="/" replace />
+              ) : (
+                <Register onRegister={handleRegister} error={error} />
+              )
+            }
           />
+
+          {/* Ruta comodín */}
           <Route
             path="*"
-            element={<Navigate to={isLoggedIn ? "/" : "/signin"} />}
+            element={<Navigate to={isLoggedIn ? "/" : "/signin"} replace />}
           />
         </Routes>
         <Footer />

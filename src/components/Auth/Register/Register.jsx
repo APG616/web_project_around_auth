@@ -6,12 +6,12 @@ import successIcon from "../../../../images/success-icon.png";
 import errorIcon from "../../../../images/error-icon.png";
 import closeIcon from "../../../../images/closeIcon.jpg";
 
-export default function Register({ onRegister }) {
+export default function Register({ onRegister, error }) {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
-  const [error, setError] = useState("");
+  const [localError, setLocalError] = useState("");
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showErrorPopup, setShowErrorPopup] = useState(false);
 
@@ -30,14 +30,14 @@ export default function Register({ onRegister }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
+    setLocalError("");
 
     try {
       await onRegister(formData.email, formData.password);
       setShowSuccessPopup(true);
       setFormData({ email: "", password: "" });
     } catch (err) {
-      setError(err.message);
+      console.error("Error en registro:", err.message);
       setShowErrorPopup(true);
     }
   };
@@ -45,7 +45,7 @@ export default function Register({ onRegister }) {
   return (
     <div className="auth">
       <h2 className="auth__title">Registro</h2>
-      {error && <p className="auth__error">{error}</p>}
+      {localError && <p className="auth__error">{localError}</p>}
       <form className="auth__form" onSubmit={handleSubmit}>
         <input
           className="auth__input"
@@ -72,8 +72,12 @@ export default function Register({ onRegister }) {
         </button>
       </form>
       <p className="auth__link">
-        ¿Ya eres miembro?
-        <Link className="auth__link-text" to="/signin">
+        ¿Ya eres miembro?{" "}
+        <Link
+          to="/signin"
+          className="auth__link-text"
+          onClick={() => setLocalError("")}
+        >
           Inicia sesión aquí
         </Link>
       </p>
