@@ -1,142 +1,95 @@
 // api.js
-const BASE_URL = "https://around-api.en.tripleten-services.com/v1";
+const API_URL = "https://around-api.en.tripleten-services.com/v1";
+const AUTH_URL = "https://se-register-api.en.tripleten-services.com/v1";
 
 class Api {
-  constructor({ baseUrl }) {
-    this._baseUrl = baseUrl;
-    console.log("API Base URL:", this._baseUrl); // Verifica la URL
-    this._validateToken();
-  }
-
-  _validateToken() {
-    const token = localStorage.getItem("jwt");
-    if (token && (!token.startsWith("eyJ") || token.length < 100)) {
-      console.error("Token inválido detectado, limpiando...");
-      localStorage.removeItem("jwt");
-    }
+  constructor({ apiUrl, authUrl }) {
+    this._apiUrl = apiUrl;
+    this._authUrl = authUrl;
   }
 
   _getHeaders() {
     const token = localStorage.getItem("jwt");
-    console.log("Using token:", token);
-    if (token) this._validateToken();
-
+    if (!token) {
+      throw new Error("No se encontró token de autenticación");
+    }
     return {
       "Content-Type": "application/json",
-      Accept: "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-      Origin: window.location.origin, // Añade el origen
-      "Access-Control-Allow-Origin": "GET, POST, PUT, PATCH, DELETE",
+      Authorization: `Bearer ${token}`,
     };
   }
 
-  _handleResponse(res) {
+  async _handleResponse(res) {
     if (!res.ok) {
-      return res
-        .json()
-        .then((err) => {
-          const statusMessages = {
-            400: "Solicitud incorrecta",
-            401: "No autorizado - token inválido",
-            404: "Endpoint no encontrado",
-            500: "Error del servidor",
-          };
-
-          const error = new Error(
-            err.message || statusMessages[res.status] || `Error ${res.status}`
-          );
-          error.status = res.status;
-          throw error;
-        })
-        .catch(() => {
-          throw new Error(
-            `Error ${res.status}: No se pudo parsear la respuesta`
-          );
-        });
+      if (res.status === 403) {
+        localStorage.removeItem("jwt"); // ✔️ Limpiar token inválido
+        throw new Error("Token inválido o expirado");
+      }
     }
-    return res.json();
   }
 
-  // User methods
   async getUserInfo() {
-    try {
-      const response = await fetch(`${this._baseUrl}/users/me`, {
-        method: "GET",
-        headers: this._getHeaders(),
-        credentials: "include", // Añade esto para manejar cookies
-      });
-
-      console.log("OPTIONS response headers:", [...response.headers.entries()]);
-
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error("Error fetching user info:", error);
-      throw error;
-    }
+    const response = await fetch(`${this._apiUrl}/users/me`, {
+      // Cambiado de _authUrl a _apiUrl
+      headers: this._getHeaders(),
+    });
+    return this._handleResponse(response);
   }
 
   async setUserInfo(data) {
-    return fetch(`${this._baseUrl}/users/me`, {
+    const response = await fetch(`${this._apiUrl}/users/me`, {
       method: "PATCH",
       headers: this._getHeaders(),
       body: JSON.stringify(data),
-    }).then(this._handleResponse);
+    });
+    return this._handleResponse(response);
   }
 
   async setUserAvatar(avatar) {
-    return fetch(`${this._baseUrl}/users/me/avatar`, {
+    const response = await fetch(`${this._apiUrl}/users/me/avatar`, {
       method: "PATCH",
       headers: this._getHeaders(),
       body: JSON.stringify({ avatar }),
-    }).then(this._handleResponse);
+    });
+    return this._handleResponse(response);
   }
 
-  // Card methods - Versión simplificada sin alternativas
   async getCardList() {
-    try {
-      const response = await fetch(`${this._baseUrl}/cards`, {
-        method: "GET",
-        headers: this._getHeaders(),
-      });
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error("Error al obtener la lista de tarjetas:", error.message);
-      return [];
-    }
+    const response = await fetch(`${this._apiUrl}/cards`, {
+      headers: this._getHeaders(),
+    });
+    return this._handleResponse(response);
   }
 
   async addCard(data) {
-    return fetch(`${this._baseUrl}/cards`, {
+    const response = await fetch(`${this._apiUrl}/cards`, {
       method: "POST",
       headers: this._getHeaders(),
       body: JSON.stringify(data),
-    }).then(this._handleResponse);
+    });
+    return this._handleResponse(response);
   }
 
   async deleteCard(cardId) {
-    return fetch(`${this._baseUrl}/cards/${cardId}`, {
+    const response = await fetch(`${this._apiUrl}/cards/${cardId}`, {
       method: "DELETE",
       headers: this._getHeaders(),
-    }).then(this._handleResponse);
+    });
+    return this._handleResponse(response);
   }
 
   async changeLikeCardStatus(cardId, isLiked) {
-    return fetch(`${this._baseUrl}/cards/${cardId}/likes`, {
+    const response = await fetch(`${this._apiUrl}/cards/${cardId}/likes`, {
       method: isLiked ? "PUT" : "DELETE",
       headers: this._getHeaders(),
-    }).then(this._handleResponse);
+    });
+    return this._handleResponse(response);
   }
 }
 
 const api = new Api({
-  baseUrl: BASE_URL,
+  apiUrl: API_URL,
+  authUrl: AUTH_URL,
 });
 
 export default api;

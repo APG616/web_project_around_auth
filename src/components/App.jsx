@@ -2,7 +2,13 @@
 import "../../pages/index.css";
 
 import { useState, useEffect } from "react";
-import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  useNavigate,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 import api from "../utils/api";
 import * as auth from "../utils/auth";
 import { CurrentUserContext } from "../contexts/CurrentUserContext";
@@ -25,6 +31,7 @@ export default function App() {
   const [email, setEmail] = useState("");
   const navigate = useNavigate();
   const [error, setError] = useState(null);
+  const location = useLocation();
 
   const [isInfoTooltipOpen, setIsInfoTooltipOpen] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -63,37 +70,46 @@ export default function App() {
   useEffect(() => {
     const token = localStorage.getItem("jwt");
 
-    if (!token) {
+    if (!token && !["/signin", "/signup"].includes(location.pathname)) {
       navigate("/signin");
       return;
     }
 
     const loadInitialData = async () => {
       try {
+        // 1. Verificar token primero
         const tokenData = await auth.checkToken(token);
-
         if (!tokenData?.data?.email) {
           throw new Error("Token inválido");
         }
 
+        // 2. Establecer estado de autenticación
+        setEmail(tokenData.data.email);
+        setIsLoggedIn(true);
+
+        // 3. Obtener datos del usuario y tarjetas
         const [userInfo, cardsData] = await Promise.all([
           api.getUserInfo(),
           api.getCardList(),
         ]);
 
-        setEmail(tokenData.data.email);
         setCurrentUser(userInfo);
         setCards(cardsData);
-        setIsLoggedIn(true);
-        navigate("/");
+
+        // 4. Redirigir si viene de páginas de auth
+        if (["/signin", "/signup"].includes(location.pathname)) {
+          navigate("/");
+        }
       } catch (error) {
-        console.error("Error al cargar datos iniciales:", error);
+        console.error("Initial load error:", error);
         handleLogout();
       }
     };
 
-    loadInitialData();
-  }, [navigate]);
+    if (token) {
+      loadInitialData();
+    }
+  }, [navigate, location.pathname]);
 
   // Efecto para recargar datos cuando cambia el estado de autenticación
   useEffect(() => {
@@ -202,29 +218,61 @@ export default function App() {
   const handleLogin = async (email, password) => {
     try {
       setError(null);
-      const data = await auth.login(email, password);
 
-      if (!data?.token) throw new Error("No se recibió token");
+      // 1. Limpiar cualquier token previo
+      localStorage.removeItem("jwt");
 
-      localStorage.setItem("jwt", data.token);
+      // 2. Hacer login para obtener nuevo token
+      const loginData = await auth.login(email, password);
+      localStorage.setItem("jwt", loginData.token);
 
-      // Cargar datos después de login exitoso
-      const tokenData = await auth.checkToken(data.token);
+      if (!loginData?.token) {
+        throw new Error("No se recibió token en la respuesta");
+      }
+
+      // 3. Guardar el nuevo token
+      localStorage.setItem("jwt", loginData.token);
+
+      // 4. Verificar el token con el endpoint /users/me
+      const tokenData = await auth.checkToken(loginData.token);
+      if (!tokenData?.data?.email) {
+        throw new Error("Token verification failed");
+      }
+
+      // 5. Establecer el estado de autenticación
+      setEmail(tokenData.data.email);
+      setIsLoggedIn(true);
+
+      // 6. Obtener los datos del usuario y las tarjetas
       const [userInfo, cardsData] = await Promise.all([
         api.getUserInfo(),
         api.getCardList(),
       ]);
 
-      setEmail(tokenData.data.email);
       setCurrentUser(userInfo);
       setCards(cardsData);
-      setIsLoggedIn(true);
+
+      // 7. Redirigir al home
       navigate("/");
     } catch (err) {
-      console.error("Error en login:", err);
-      const errorMessage = err.message.includes("Failed to fetch")
-        ? "Error de conexión con el servidor"
-        : err.message || "Error al iniciar sesión";
+      console.error("Login error:", err);
+
+      // Limpiar estado y token inválido
+      localStorage.removeItem("jwt");
+      setIsLoggedIn(false);
+      setEmail("");
+
+      let errorMessage = "Error al iniciar sesión";
+      if (err.message.includes("401")) {
+        errorMessage = "Credenciales inválidas";
+      } else if (
+        err.message.includes("403") ||
+        err.message.includes("Invalid Token")
+      ) {
+        errorMessage = "Token inválido o expirado. Intente nuevamente.";
+      } else if (err.message.includes("Failed to fetch")) {
+        errorMessage = "Error de conexión con el servidor";
+      }
 
       setError(errorMessage);
       setIsInfoTooltipOpen(true);
@@ -244,14 +292,10 @@ export default function App() {
     try {
       setError(null);
       const registerData = await auth.register(email, password);
-
-      if (registerData) {
-        // No manejamos el InfoTooltip aquí, lo hace el componente Register
-        return registerData; // Devuelve los datos para que Register maneje el popup
-      }
+      return registerData;
     } catch (err) {
       console.error("Error en registro:", err);
-      throw err; // Lanza el error para que Register lo maneje
+      throw err; // Propaga el error con el mensaje original
     }
   };
 
@@ -263,7 +307,6 @@ export default function App() {
           userEmail={email}
           onLogout={handleLogout}
         />
-
         <Routes>
           <Route
             path="/"
@@ -281,38 +324,17 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-
-          {/* Rutas de autenticación */}
-          <Route
-            path="/signin"
-            element={
-              isLoggedIn ? (
-                <Navigate to="/" replace />
-              ) : (
-                <Login onLogin={handleLogin} apiError={error} />
-              )
-            }
-          />
-
+          <Route path="/signin" element={<Login onLogin={handleLogin} />} />
           <Route
             path="/signup"
-            element={
-              isLoggedIn ? (
-                <Navigate to="/" replace />
-              ) : (
-                <Register onRegister={handleRegister} error={error} />
-              )
-            }
+            element={<Register onRegister={handleRegister} />}
           />
-
-          {/* Ruta comodín */}
           <Route
             path="*"
-            element={<Navigate to={isLoggedIn ? "/" : "/signin"} replace />}
+            element={<Navigate to={isLoggedIn ? "/" : "/signin"} />}
           />
         </Routes>
         <Footer />
-
         {popup.type === "add-card" && (
           <Popup
             isOpen={popup.isOpen}
@@ -322,7 +344,7 @@ export default function App() {
             <NewCard onAddPlaceSubmit={handleAddPlaceSubmit} />
           </Popup>
         )}
-
+        {/* Popup para editar avatar */}
         {popup.type === "edit-avatar" && (
           <Popup
             isOpen={popup.isOpen}
@@ -332,7 +354,7 @@ export default function App() {
             <EditAvatar onUpdateAvatar={handleUpdateAvatar} />
           </Popup>
         )}
-
+        {/* Popup para editar perfil */}
         {popup.type === "edit-profile" && (
           <Popup
             isOpen={popup.isOpen}
@@ -345,7 +367,6 @@ export default function App() {
             />
           </Popup>
         )}
-
         <InfoTooltip
           isOpen={isInfoTooltipOpen}
           onClose={closeInfoTooltip}

@@ -1,3 +1,4 @@
+// Header.jsx
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import "../../../blocks/header.css";
@@ -12,7 +13,6 @@ export default function Header({ isLoggedIn, userEmail, onLogout }) {
     <header className="header">
       <div className="header__content">
         <img src={logo} alt="Logo" className="header__logo" />
-
         <div className="header__right-content">
           {isLoggedIn ? (
             <>
@@ -27,7 +27,6 @@ export default function Header({ isLoggedIn, userEmail, onLogout }) {
                 <span></span>
                 <span></span>
               </button>
-
               <div
                 className={`header__auth-container ${
                   isMenuOpen ? "header__auth-container_active" : ""
@@ -42,7 +41,11 @@ export default function Header({ isLoggedIn, userEmail, onLogout }) {
           ) : (
             <nav className="header__nav">
               {location.pathname === "/signin" && (
-                <Link to="/signup" className="header__link">
+                <Link
+                  to="/signup"
+                  className="header__link"
+                  state={{ from: location }}
+                >
                   Regístrate
                 </Link>
               )}

@@ -6,17 +6,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
-    proxy: {
-      "/api": {
-        target: "https://se-register-api.en.tripleten-services.com",
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, "/v1"),
-      },
-    },
-    resolve: {
-      alias: {
-        "@images": path.resolve(__dirname, "images"),
-      },
+  },
+  resolve: {
+    alias: {
+      "@images": path.resolve(__dirname, "images"),
     },
   },
 });
