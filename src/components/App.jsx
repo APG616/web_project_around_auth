@@ -1,7 +1,7 @@
 // App.jsx
 import "../../pages/index.css";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Routes,
   Route,
@@ -10,7 +10,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import api from "../utils/api";
-import * as auth from "../utils/auth";
+import Auth from "../utils/Auth";
 import { CurrentUserContext } from "../contexts/CurrentUserContext";
 import Footer from "./Footer/Footer";
 import Header from "./Header/Header";
@@ -25,25 +25,85 @@ import ProtectedRoute from "./Auth/ProtectedRoute";
 import InfoTooltip from "./InfoTooltip/InfoTooltip";
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState({});
-  const [cards, setCards] = useState([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState({});
   const [email, setEmail] = useState("");
-  const navigate = useNavigate();
-  const [error, setError] = useState(null);
-  const location = useLocation();
-
   const [isInfoTooltipOpen, setIsInfoTooltipOpen] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-
-  const closeInfoTooltip = () => setIsInfoTooltipOpen(false);
-
   const [popup, setPopup] = useState({
     isOpen: false,
     type: "",
     title: "",
     children: null,
   });
+  const [error, setError] = useState("");
+  const [cards, setCards] = useState([]);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+    const handleLogin = async (email, password) => {
+    Auth.signin(email, password)
+      .then((data) => {
+        localStorage.setItem("jwt", data.token);
+        setEmail(email);
+        setIsLoggedIn(true);
+        navigate("/");
+      })
+      .catch((error) => {
+        console.error("Login error:", error);
+        setIsInfoTooltipOpen(true);
+        setIsSuccess(false);
+      });
+  };
+
+  const handleLogout = useCallback(() => {
+    Auth.logout();
+    setIsLoggedIn(false);
+    setEmail("");
+    navigate("/signin");
+  }, [navigate]);
+
+  
+
+  // Efecto para verificar autenticación y cargar datos al montar
+  useEffect(() => {
+    const token = localStorage.getItem("jwt");
+    if (token) {
+      Auth.checkToken(token)
+        .then((res) => {
+          setEmail(res.data.email);
+          setIsLoggedIn(true);
+          navigate(location.pathname);
+        })
+        .catch((err) => {
+          console.error("Token check error:", err);
+          handleLogout();
+        });
+    }
+  }, [location.pathname, navigate, handleLogout]);
+
+  // Efecto para recargar datos cuando cambia el estado de autenticación
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const fetchData = async () => {
+      try {
+        const [userInfo, cardsData] = await Promise.all([
+          api.getUserInfo(),
+          api.getCardList(),
+        ]);
+        setCurrentUser(userInfo);
+        setCards(cardsData);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        if (error.message.includes("401") || error.message.includes("403")) {
+          handleLogout();
+        }
+      }
+    };
+
+    fetchData();
+  }, [handleLogout, isLoggedIn]);
 
   useEffect(() => {
     // Manejo de errores global
@@ -64,75 +124,7 @@ export default function App() {
         handleUnhandledRejection
       );
     };
-  }, []);
-
-  // Efecto para verificar autenticación y cargar datos al montar
-  useEffect(() => {
-    const token = localStorage.getItem("jwt");
-
-    if (!token && !["/signin", "/signup"].includes(location.pathname)) {
-      navigate("/signin");
-      return;
-    }
-
-    const loadInitialData = async () => {
-      try {
-        // 1. Verificar token primero
-        const tokenData = await auth.checkToken(token);
-        if (!tokenData?.data?.email) {
-          throw new Error("Token inválido");
-        }
-
-        // 2. Establecer estado de autenticación
-        setEmail(tokenData.data.email);
-        setIsLoggedIn(true);
-
-        // 3. Obtener datos del usuario y tarjetas
-        const [userInfo, cardsData] = await Promise.all([
-          api.getUserInfo(),
-          api.getCardList(),
-        ]);
-
-        setCurrentUser(userInfo);
-        setCards(cardsData);
-
-        // 4. Redirigir si viene de páginas de auth
-        if (["/signin", "/signup"].includes(location.pathname)) {
-          navigate("/");
-        }
-      } catch (error) {
-        console.error("Initial load error:", error);
-        handleLogout();
-      }
-    };
-
-    if (token) {
-      loadInitialData();
-    }
-  }, [navigate, location.pathname]);
-
-  // Efecto para recargar datos cuando cambia el estado de autenticación
-  useEffect(() => {
-    if (!isLoggedIn) return;
-
-    const fetchData = async () => {
-      try {
-        const [userInfo, cardsData] = await Promise.all([
-          api.getUserInfo(),
-          api.getCardList(),
-        ]);
-        setCurrentUser(userInfo);
-        setCards(cardsData);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        if (error.message.includes("401")) {
-          handleLogout();
-        }
-      }
-    };
-
-    fetchData();
-  }, [isLoggedIn]);
+  }, [setError, setIsInfoTooltipOpen, setIsSuccess]);
 
   function handleOpenPopup(type, title, children) {
     setPopup({
@@ -215,88 +207,23 @@ export default function App() {
       });
   };
 
-  const handleLogin = async (email, password) => {
-    try {
-      setError(null);
 
-      // 1. Limpiar cualquier token previo
-      localStorage.removeItem("jwt");
-
-      // 2. Hacer login para obtener nuevo token
-      const loginData = await auth.login(email, password);
-      localStorage.setItem("jwt", loginData.token);
-
-      if (!loginData?.token) {
-        throw new Error("No se recibió token en la respuesta");
-      }
-
-      // 3. Guardar el nuevo token
-      localStorage.setItem("jwt", loginData.token);
-
-      // 4. Verificar el token con el endpoint /users/me
-      const tokenData = await auth.checkToken(loginData.token);
-      if (!tokenData?.data?.email) {
-        throw new Error("Token verification failed");
-      }
-
-      // 5. Establecer el estado de autenticación
-      setEmail(tokenData.data.email);
-      setIsLoggedIn(true);
-
-      // 6. Obtener los datos del usuario y las tarjetas
-      const [userInfo, cardsData] = await Promise.all([
-        api.getUserInfo(),
-        api.getCardList(),
-      ]);
-
-      setCurrentUser(userInfo);
-      setCards(cardsData);
-
-      // 7. Redirigir al home
-      navigate("/");
-    } catch (err) {
-      console.error("Login error:", err);
-
-      // Limpiar estado y token inválido
-      localStorage.removeItem("jwt");
-      setIsLoggedIn(false);
-      setEmail("");
-
-      let errorMessage = "Error al iniciar sesión";
-      if (err.message.includes("401")) {
-        errorMessage = "Credenciales inválidas";
-      } else if (
-        err.message.includes("403") ||
-        err.message.includes("Invalid Token")
-      ) {
-        errorMessage = "Token inválido o expirado. Intente nuevamente.";
-      } else if (err.message.includes("Failed to fetch")) {
-        errorMessage = "Error de conexión con el servidor";
-      }
-
-      setError(errorMessage);
-      setIsInfoTooltipOpen(true);
-      setIsSuccess(false);
-      throw err;
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("jwt");
-    setIsLoggedIn(false);
-    setEmail("");
-    navigate("/signin");
-  };
 
   const handleRegister = async (email, password) => {
     try {
-      setError(null);
-      const registerData = await auth.register(email, password);
-      return registerData;
-    } catch (err) {
-      console.error("Error en registro:", err);
-      throw err; // Propaga el error con el mensaje original
+      await Auth.signup(email, password);
+      setIsSuccess(true);
+      navigate("/signin");
+    } catch (error) {
+      setIsSuccess(false);
+      console.error("Registration error:", error);
+    } finally {
+      setIsInfoTooltipOpen(true);
     }
+  };
+
+  const closeInfoTooltip = () => {
+    setIsInfoTooltipOpen(false);
   };
 
   return (

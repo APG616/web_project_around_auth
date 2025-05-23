@@ -12,58 +12,39 @@ export default function Register({ onRegister }) {
     password: "",
   });
   const [error, setError] = useState("");
-  const navigate = useNavigate();
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showErrorPopup, setShowErrorPopup] = useState(false);
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const closeAllPopups = () => {
-    setShowSuccessPopup(false);
-    setShowErrorPopup(false);
+    setFormData(() => ({ ...formData, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-
-    // Validación frontend
     if (!formData.email || !formData.password) {
       setError("Email y contraseña son obligatorios");
       setShowErrorPopup(true);
       return;
     }
-
-    if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
-      setError("Ingrese un email válido");
-      setShowErrorPopup(true);
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres");
-      setShowErrorPopup(true);
-      return;
-    }
-
-    try {
-      const response = await onRegister(formData.email, formData.password);
-
-      if (response?.data) {
+    onRegister(formData.email, formData.password)
+      .then(() => {
         setShowSuccessPopup(true);
-        setTimeout(() => navigate("/signin"), 2000);
-      }
-    } catch (err) {
-      console.error("Error en registro:", err);
-      setError(
-        err.message ||
-          "Error al registrarse. Por favor, intente con diferentes credenciales."
-      );
-      setShowErrorPopup(true);
-    }
+        setTimeout(() => {
+          navigate("/signin");
+        }, 2000);
+      })
+      .catch(() => {
+        setError("Error en el registro");
+        setShowErrorPopup(true);
+      });
+  };
+
+  const closeAllPopups = () => {
+    setShowSuccessPopup(false);
+    setShowErrorPopup(false);
+    setError("");
   };
 
   return (
@@ -90,7 +71,8 @@ export default function Register({ onRegister }) {
           onChange={handleChange}
           placeholder="Contraseña"
           required
-          minLength="6"
+          minLength="4"
+          autoComplete="new-password"
         />
         <button className="auth__button" type="submit">
           Registrarse

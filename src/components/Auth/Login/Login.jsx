@@ -1,6 +1,6 @@
 //Login.jsx
 import { useState } from "react";
-import { useNavigate, Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import "../../../../pages/index.css";
 
 export default function Login({ onLogin }) {
@@ -9,49 +9,26 @@ export default function Login({ onLogin }) {
     password: "",
   });
   const [error, setError] = useState("");
-  const navigate = useNavigate();
-  const location = useLocation();
-
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((_prev) => ({ ...formData, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-
-    // Validación básica
     if (!formData.email || !formData.password) {
-      setError("Email y contraseña son requeridos");
+      setError("Email y contraseña son obligatorios");
       return;
     }
-
-    try {
-      await onLogin(formData.email, formData.password);
-      navigate(location.state?.from || "/", { replace: true });
-    } catch (err) {
-      console.error("Error en login:", err);
-
-      let errorMessage = "Error al iniciar sesión";
-      if (err.message.includes("401")) {
-        errorMessage = "Credenciales inválidas";
-      } else if (err.message.includes("403")) {
-        errorMessage = "Problema de autenticación. Intente nuevamente.";
-      } else if (err.message.includes("Failed to fetch")) {
-        errorMessage = "Error de conexión con el servidor";
-      }
-
-      setError(errorMessage);
-    }
+    onLogin(formData.email, formData.password).catch((err) => {
+      setError("Error en el inicio de sesión");
+    });
   };
 
   return (
     <div className="auth">
       <h2 className="auth__title">Iniciar sesión</h2>
+      {/* eslint-disable-next-line no-undef */}
       {error && <p className="auth__error">{error}</p>}
       <form className="auth__form" onSubmit={handleSubmit} noValidate>
         <input
@@ -71,7 +48,10 @@ export default function Login({ onLogin }) {
           onChange={handleChange}
           placeholder="Contraseña"
           required
+          minLength="4"
+          autoComplete="current-password"
         />
+        {/* eslint-disable-next-line no-undef*/}
         <button className="auth__button" type="submit">
           Iniciar sesión
         </button>

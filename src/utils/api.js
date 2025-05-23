@@ -1,5 +1,7 @@
 // api.js
-const API_URL = "https://around-api.en.tripleten-services.com/v1";
+// Operaciones con datos (cards, users) -> API_URL
+const API_URL = "https://around-api.en.tripleten-services.com/v1"; 
+// Operaciones de autenticación (login/register) -> AUTH_URL
 const AUTH_URL = "https://se-register-api.en.tripleten-services.com/v1";
 
 class Api {
@@ -13,19 +15,23 @@ class Api {
     if (!token) {
       throw new Error("No se encontró token de autenticación");
     }
+
     return {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${localStorage.getItem("jwt")}`,
     };
   }
 
   async _handleResponse(res) {
+    const errorData = await res.json().catch(() => ({}));
     if (!res.ok) {
-      if (res.status === 403) {
+      if (res.status === 403 || res.status === 401) {
         localStorage.removeItem("jwt"); // ✔️ Limpiar token inválido
-        throw new Error("Token inválido o expirado");
+        throw new Error(errorData.message || "Token inválido o expirado");
       }
+      throw new Error(errorData.message || `Error: ${res.status}`);
     }
+    return res.json();
   }
 
   async getUserInfo() {
