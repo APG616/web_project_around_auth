@@ -38,6 +38,7 @@ export default function Login({ onLogin }) {
           value={formData.email}
           onChange={handleChange}
           placeholder="Correo electrónico"
+          autoComplete="username"
           required
         />
         <input

@@ -41,19 +41,19 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-    const handleLogin = async (email, password) => {
-    Auth.signin(email, password)
-      .then((data) => {
-        localStorage.setItem("jwt", data.token);
-        setEmail(email);
-        setIsLoggedIn(true);
-        navigate("/");
-      })
-      .catch((error) => {
-        console.error("Login error:", error);
-        setIsInfoTooltipOpen(true);
-        setIsSuccess(false);
-      });
+  const handleLogin = async (email, password) => {
+    try {
+      const data = await api.signin(email, password);
+      console.log("Login successful:", data);
+      localStorage.setItem("jwt", data.token);
+      setEmail(email);
+      setIsLoggedIn(true);
+      navigate("/");
+    } catch (error) {
+      console.error("Login error:", error);
+      setIsInfoTooltipOpen(true);
+      setIsSuccess(false);
+    }
   };
 
   const handleLogout = useCallback(() => {
@@ -67,20 +67,20 @@ export default function App() {
 
   // Efecto para verificar autenticación y cargar datos al montar
   useEffect(() => {
-    const token = localStorage.getItem("jwt");
-    if (token) {
-      Auth.checkToken(token)
-        .then((res) => {
-          setEmail(res.data.email);
-          setIsLoggedIn(true);
-          navigate(location.pathname);
-        })
-        .catch((err) => {
-          console.error("Token check error:", err);
-          handleLogout();
-        });
-    }
-  }, [location.pathname, navigate, handleLogout]);
+  const token = localStorage.getItem("jwt");
+  if (token && !isLoggedIn) {
+    api.getUserInfo()
+      .then(user => {
+        setIsLoggedIn(true);
+        setCurrentUser(user);
+        setEmail(user.email || "");
+      })
+      .catch(err => {
+        console.error("Error verificando token:", err);
+        handleLogout();
+      });
+  }
+}, []);
 
   // Efecto para recargar datos cuando cambia el estado de autenticación
   useEffect(() => {
