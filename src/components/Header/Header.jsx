@@ -11,15 +11,35 @@ export default function Header({ isLoggedIn, userEmail, onLogout }) {
 
   return (
     <header className="header">
-      <div className="header__content">
+      {/* Menú hamburguesa abierto */}
+      {isLoggedIn && isMenuOpen && (
+        <div className="header__info-container header__info-container_active">
+          {/* Email y Cerrar sesión en la parte superior */}
+          <div className="header__mobile-menu-content">
+      <span className="header__email">{userEmail}</span>
+      <button className="header__logout" onClick={onLogout}>
+        Cerrar sesión
+      </button>
+    </div>
+
+          {/* Botón cerrar y logo en la parte inferior del menú */}
+          <button 
+      className="header__close" 
+      onClick={toggleMenu} 
+      aria-label="Cerrar"
+    >
+      ✕
+    </button>
+        </div>
+      )}
+      {/* Contenedor de barra principal*/}
+      <div className={`header__content ${isMenuOpen ? "header__content_hidden" : ""}`}>
         <img src={logo} alt="Logo" className="header__logo" />
         <div className="header__right-content">
           {isLoggedIn ? (
             <>
               <button
-                className={`header__hamburger ${
-                  isMenuOpen ? "header__hamburger_active" : ""
-                }`}
+                className="header__hamburger"
                 onClick={toggleMenu}
                 aria-label="Menú"
               >
@@ -27,16 +47,6 @@ export default function Header({ isLoggedIn, userEmail, onLogout }) {
                 <span></span>
                 <span></span>
               </button>
-              <div
-                className={`header__auth-container ${
-                  isMenuOpen ? "header__auth-container_active" : ""
-                }`}
-              >
-                <span className="header__email">{userEmail}</span>
-                <button className="header__logout" onClick={onLogout}>
-                  Cerrar sesión
-                </button>
-              </div>
             </>
           ) : (
             <nav className="header__nav">
@@ -58,6 +68,9 @@ export default function Header({ isLoggedIn, userEmail, onLogout }) {
           )}
         </div>
       </div>
+
+      
     </header>
   );
 }
+           
