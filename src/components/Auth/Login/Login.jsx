@@ -14,16 +14,26 @@ export default function Login({ onLogin }) {
     setFormData((_prev) => ({ ...formData, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.email || !formData.password) {
-      setError("Email y contraseña son obligatorios");
-      return;
-    }
-    onLogin(formData.email, formData.password).catch((err) => {
-      setError("Error en el inicio de sesión");
-    });
-  };
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError("");
+  
+  // Basic validation
+  if (!formData.email || !formData.email.includes('@')) {
+    setError("Por favor ingresa un email válido");
+    return;
+  }
+  if (!formData.password) {
+    setError("Por favor ingresa tu contraseña");
+    return;
+  }
+
+  try {
+    await onLogin(formData.email, formData.password);
+  } catch (err) {
+    setError(err.message || "Error al iniciar sesión");
+  }
+};
 
   return (
     <div className="auth">

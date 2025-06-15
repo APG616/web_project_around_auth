@@ -21,13 +21,16 @@ export default function Register({ onRegister }) {
     setFormData(() => ({ ...formData, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.email || !formData.password) {
-      setError("Email y contraseña son obligatorios");
-      setShowErrorPopup(true);
-      return;
-    }
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    setError("Por favor ingresa un email válido");
+    return;
+  }
+  if (!formData.password || formData.password.length < 8) {
+    setError("La contraseña debe tener al menos 8 caracteres");
+    return;
+  }
     onRegister(formData.email, formData.password)
       .then(() => {
         setShowSuccessPopup(true);
@@ -55,25 +58,26 @@ export default function Register({ onRegister }) {
 
       <form className="auth__form" onSubmit={handleSubmit} noValidate>
         <input
-          className="auth__input"
-          type="email"
-          name="email"
-          value={formData.email}
-          onChange={handleChange}
-          placeholder="Correo electrónico"
-          required
-        />
-        <input
-          className="auth__input"
-          type="password"
-          name="password"
-          value={formData.password}
-          onChange={handleChange}
-          placeholder="Contraseña"
-          required
-          minLength="4"
-          autoComplete="new-password"
-        />
+  className="auth__input"
+  type="email"
+  name="email"
+  value={formData.email}
+  onChange={handleChange}
+  placeholder="Correo electrónico"
+  required
+  autoComplete="username"  // Add this
+/>
+<input
+  className="auth__input"
+  type="password"
+  name="password"
+  value={formData.password}
+  onChange={handleChange}
+  placeholder="Contraseña"
+  required
+  minLength="4"
+  autoComplete="new-password"  // Add this
+/>
         <button className="auth__button" type="submit">
           Registrarse
         </button>

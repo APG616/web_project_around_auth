@@ -10,7 +10,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import api from "../utils/api";
-import Auth from "../utils/Auth";
+import Auth from "../utils/auth";
 import { CurrentUserContext } from "../contexts/CurrentUserContext";
 import Footer from "./Footer/Footer";
 import Header from "./Header/Header";
@@ -41,69 +41,71 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleLogin = async (email, password) => {
-    try {
-      const data = await api.signin(email, password);
-      console.log("Login successful:", data);
-      localStorage.setItem("jwt", data.token);
-      setEmail(email);
-      setIsLoggedIn(true);
-      navigate("/");
-    } catch (error) {
-      console.error("Login error:", error);
-      setIsInfoTooltipOpen(true);
-      setIsSuccess(false);
-    }
-  };
-
-  const handleLogout = useCallback(() => {
-    Auth.logout();
-    setIsLoggedIn(false);
-    setEmail("");
-    navigate("/signin");
-  }, [navigate]);
-
-  
-
-  // Efecto para verificar autenticación y cargar datos al montar
-  useEffect(() => {
-  const token = localStorage.getItem("jwt");
-  if (token && !isLoggedIn) {
-    api.getUserInfo()
-      .then(user => {
-        setIsLoggedIn(true);
-        setCurrentUser(user);
-        setEmail(user.email || "");
-      })
-      .catch(err => {
-        console.error("Error verificando token:", err);
-        handleLogout();
-      });
+const handleLogin = async (email, password) => {
+  try {
+    const data = await api.signin(email, password);
+    Auth.login(data.token);
+    setEmail(email);
+    setIsLoggedIn(true);
+    await loadData();
+    navigate("/");
+  } catch (error) {
+    console.error("Login error:", error);
+    setError(error.message || "Error al iniciar sesión");
+    setIsInfoTooltipOpen(true);
+    setIsSuccess(false);
   }
-}, []);
+};
 
-  // Efecto para recargar datos cuando cambia el estado de autenticación
-  useEffect(() => {
-    if (!isLoggedIn) return;
+ const handleLogout = useCallback(() => {
+  Auth.logout();
+  setIsLoggedIn(false);
+  setCurrentUser({});
+  setCards([]);
+  setEmail("");
+  navigate("/signin");
+}, [navigate]);
 
-    const fetchData = async () => {
+  const loadData = useCallback(async () => {
+  if (!isLoggedIn) return;
+
+  try {
+    const [userData, cardsData] = await Promise.all([
+      api.getUserInfo(),
+      api.getCardList()
+    ]);
+    setCurrentUser(userData);
+    setCards(cardsData);
+    setEmail(userData.email || "");
+  } catch (error) {
+    console.error("Error loading data:", error);
+    if (error.message.includes("401")) {
+      handleLogout();
+    }
+  }
+}, [isLoggedIn, handleLogout]);
+
+  // Nuevo useEffect unificado
+useEffect(() => {
+  const checkAuth = async () => {
+    if (Auth.isLoggedIn()) {
       try {
-        const [userInfo, cardsData] = await Promise.all([
-          api.getUserInfo(),
-          api.getCardList(),
-        ]);
-        setCurrentUser(userInfo);
-        setCards(cardsData);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        if (error.message.includes("401") || error.message.includes("403")) {
+        const isAuthenticated = await Auth.checkAuth();
+        if (isAuthenticated) {
+          setIsLoggedIn(true);
+          await loadData(); // Carga usuario y tarjetas
+        } else {
           handleLogout();
         }
+      } catch (error) {
+        console.error("Auth check error:", error);
+        handleLogout();
       }
-    };
-
-    fetchData();
-  }, [handleLogout, isLoggedIn]);
+    }
+  };
+  
+  checkAuth();
+}, [loadData, handleLogout, Auth]); 
 
   useEffect(() => {
     // Manejo de errores global
@@ -209,19 +211,22 @@ export default function App() {
 
 
 
-  const handleRegister = async (email, password) => {
-    try {
-      await Auth.signup(email, password);
-      setIsSuccess(true);
-      navigate("/signin");
-    } catch (error) {
-      setIsSuccess(false);
-      console.error("Registration error:", error);
-    } finally {
-      setIsInfoTooltipOpen(true);
-    }
-  };
-
+const handleRegister = async (email, password) => {
+  try {
+    const response = await api.signup(email, password);
+    setIsSuccess(true);
+    setIsInfoTooltipOpen(true);
+    navigate("/signin");
+  } catch (error) {
+    console.error("Registration error:", error);
+    setIsSuccess(false);
+    // Show more detailed error message
+    setError(error.message.includes('{') 
+      ? `Error de validación: ${error.message}`
+      : error.message || "Error al registrar usuario. Verifica tus datos.");
+    setIsInfoTooltipOpen(true);
+  }
+};
   const closeInfoTooltip = () => {
     setIsInfoTooltipOpen(false);
   };

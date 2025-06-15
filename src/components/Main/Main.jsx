@@ -2,7 +2,7 @@
 import React, { useContext, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter as Router } from "react-router-dom";
-import { CurrentUserContext } from "../../../src/contexts/CurrentUserContext";
+import { CurrentUserContext } from "../../contexts/CurrentUserContext";
 import api from "../../utils/api";
 import Card from "../Card/Card";
 import Popup from "../Popup/Popup";

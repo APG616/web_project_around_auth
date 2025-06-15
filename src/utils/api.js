@@ -1,72 +1,114 @@
-// api.js
-const BASE_URL = "https://around-api.es.tripleten-services.com/v1";
-const HARDCODED_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2ODM2NjMyMzdhYmU0NjBiODlkMDQ1ZjMiLCJpYXQiOjE3NDgzOTQ4MDYsImV4cCI6MTc0ODk5OTYwNn0.pr-YWiG4JqL3MdCQAph_mj2c2mztmAnEZx4kziG3p6I"
+//api.js
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 class Api {
-  constructor() {
-    // Eliminado todo el código relacionado con mock data
-  }
-
-  _getHeaders() {
-    const token = localStorage.getItem("jwt");
-    if (!token) {
-      console.warn("No JWT token found, using hardcoded token");
-      return this._getHardcodedHeaders();
-    }
-
-    return {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`
+    constructor() {
+    this._headers = {
+      'Content-Type': 'application/json'
     };
   }
 
-  _getHardcodedHeaders() {
-    return {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${HARDCODED_TOKEN}`
+  _updateHeaders() {
+    const token = localStorage.getItem('jwt');
+    this._headers = {
+      ...this._headers,
+      ...(token && { 'Authorization': `Bearer ${token}` })
     };
   }
 
-  async _handleResponse(res) {
+   _getHeaders() {
+    const token = localStorage.getItem('jwt');
+    return {
+      ...this._headers,
+      ...(token && { 'Authorization': `Bearer ${token}` })
+    };
+  }
+    async _handleResponse(res) {
+    const text = await res.text();
     if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      if (res.status === 403 || res.status === 401) {
-        localStorage.removeItem("jwt");
-        throw new Error(errorData.message || `Token inválido o expirado (${res.status})`);
+      let errorMsg = 'Error en la solicitud';
+      try {
+        const data = text ? JSON.parse(text) : {};
+        errorMsg = data.message || errorMsg;
+      } catch {
+        errorMsg = text || errorMsg;
       }
-      throw new Error(errorData.message || `Error: ${res.status}`);
+      throw new Error(errorMsg);
     }
-    return res.json();
+    return text ? JSON.parse(text) : {};
   }
 
-  async signin(email, password) {
-    const response = await fetch('https://se-register-api.en.tripleten-services.com/v1/signin', {
-      method: "POST",
+
+async signin(email, password) {
+  try {
+    const response = await fetch(`${BASE_URL}/signin`, {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json"
-      },
+        'Content-Type': 'application/json'
+      }, // Don't include Authorization header for login
       body: JSON.stringify({ email, password })
     });
-    return this._handleResponse(response);
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Login API error:', errorData);
+      throw new Error(errorData.message || 'Correo electrónico o contraseña incorrectos');
+    }
+    
+    const data = await response.json();
+    if (!data.token) {
+      throw new Error('No se recibió token de autenticación');
+    }
+    return data;
+  } catch (error) {
+    console.error('Signin error:', error);
+    throw error;
   }
+}
 
-  async signup(email, password) {
-    const response = await fetch('https://se-register-api.en.tripleten-services.com/v1/signup', {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-
-      },
-      body: JSON.stringify({ email, password })
+async signup(email, password) {
+  try {
+    const response = await fetch(`${BASE_URL}/signup`, {
+      method: 'POST',
+      headers: this._getHeaders(),
+      body: JSON.stringify({
+        email,
+        password,
+        name: 'New User',    // Default value
+        about: 'Explorer',   // Default value
+        avatar: undefined    // Send undefined instead of empty string
+      })
     });
-    return this._handleResponse(response);
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      // Enhanced error message with validation details if available
+      const errorMsg = errorData.message || 
+                      (errorData.errors ? JSON.stringify(errorData.errors) : 'Registration failed');
+      throw new Error(errorMsg);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Signup error:', error);
+    throw error;
   }
+}
 
   async getUserInfo() {
-    const response = await fetch(`${BASE_URL}/users/me`, {
+    this._updateHeaders();
+    return fetch(`${BASE_URL}/users/me`, {
       headers: this._getHeaders()
-    });
-    return this._handleResponse(response);
+    }).then(this._handleResponse);
+  }
+
+  async updateUserInfo(data) {
+    this._updateHeaders();
+    return fetch(`${BASE_URL}/users/me`, {
+      method: 'PATCH',
+      headers: this._getHeaders(),
+      body: JSON.stringify(data)
+    }).then(this._handleResponse);
   }
 
   async setUserInfo(data) {
@@ -78,45 +120,54 @@ class Api {
     return this._handleResponse(response);
   }
 
-  async setUserAvatar(avatar) {
-    const response = await fetch(`${BASE_URL}/users/me/avatar`, {
-      method: "PATCH",
-      headers: this._getHeaders(),
+  async updateUserAvatar(avatar) {
+    this._updateHeaders();
+    return fetch(`${BASE_URL}/users/me/avatar`, {
+      method: 'PATCH',
+      headers: this._getHeaders,
       body: JSON.stringify({ avatar })
-    });
-    return this._handleResponse(response);
+    }).then(this._handleResponse);
   }
+
+async setUserAvatar(avatar) {
+  const response = await fetch(`${BASE_URL}/users/me/avatar`, {
+    method: "PATCH",
+    headers: this._getHeaders(),
+    body: JSON.stringify({ avatar })
+  });
+  return this._handleResponse(response);
+}
 
   async getCardList() {
-    const response = await fetch(`${BASE_URL}/cards`, {
+    this._updateHeaders();
+    return fetch(`${BASE_URL}/cards`, {
       headers: this._getHeaders()
-    });
-    return this._handleResponse(response);
+    }).then(this._handleResponse);
   }
 
-  async addCard(data) {
-    const response = await fetch(`${BASE_URL}/cards`, {
-      method: "POST",
+  async addCard({ name, link }) {
+    this._updateHeaders();
+    return fetch(`${BASE_URL}/cards`, {
+      method: 'POST',
       headers: this._getHeaders(),
-      body: JSON.stringify(data)
-    });
-    return this._handleResponse(response);
+      body: JSON.stringify({ name, link })
+    }).then(this._handleResponse);
   }
 
   async deleteCard(cardId) {
-    const response = await fetch(`${BASE_URL}/cards/${cardId}`, {
-      method: "DELETE",
+    this._updateHeaders();
+    return fetch(`${BASE_URL}/cards/${cardId}`, {
+      method: 'DELETE',
       headers: this._getHeaders()
-    });
-    return this._handleResponse(response);
+    }).then(this._handleResponse);
   }
 
   async changeLikeCardStatus(cardId, isLiked) {
-    const response = await fetch(`${BASE_URL}/cards/${cardId}/likes`, {
-      method: isLiked ? "PUT" : "DELETE",
+    this._updateHeaders();
+    return fetch(`${BASE_URL}/cards/${cardId}/likes`, {
+      method: isLiked ? 'PUT' : 'DELETE',
       headers: this._getHeaders()
-    });
-    return this._handleResponse(response);
+    }).then(this._handleResponse);
   }
 }
 
